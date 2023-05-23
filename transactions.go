@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"fmt"
 )
 
 func DeserializeTransaction(raw_data []byte) (*Transaction, error) {
@@ -80,4 +81,43 @@ func DeserializeTransaction(raw_data []byte) (*Transaction, error) {
 	index += 4
 
 	return &t, nil
+}
+
+func RunScript(script []byte) error {
+	//fmt.Printf("%x\n", script)
+	var stack Stack
+	stack_init(&stack)
+	for i := 0; i < len(script); i++ {
+		switch b := script[i]; b {
+		case 0x76:
+			fmt.Println("OP_DUP")
+			top := stack_peek(&stack)
+			stack_push(&stack, top)
+		case 0x88:
+			fmt.Println("OP_EQUALVERIFY")
+			x1 := stack_pop(&stack)
+			x2 := stack_pop(&stack)
+			result := bytes.Equal(x1, x2)
+			if !result {
+				return errors.New("transaction validation failed")
+			}
+			stack_print(&stack)
+		case 0xa9:
+			fmt.Println("OP_HASH160")
+			top := stack_pop(&stack)
+			stack_push(&stack, Hash160(top))
+		case 0xac:
+			fmt.Println("OP_CHECKSIG")
+			return nil
+		default:
+			if b >= 0x01 && b <= 0x4b {
+				fmt.Println("OP_PUSHDATA0")
+				stack_push(&stack, script[i+1:i+int(b)+1])
+				i += int(b)
+			} else {
+				return errors.New("opcode not supported")
+			}
+		}
+	}
+	return nil
 }
