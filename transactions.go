@@ -12,6 +12,38 @@ import (
 	"github.com/dustinxie/ecc"
 )
 
+type compact_size int64
+
+type Transaction struct {
+	version      int32
+	input_count  compact_size
+	inputs       []Transaction_Input
+	output_count int64
+	outputs      []Transaction_Output
+	lock_time    uint32
+}
+
+type Transaction_Output struct {
+	amount      int64
+	script_size compact_size
+	script      []byte // Locking script
+}
+
+type Transaction_Input struct {
+	transaction_hash [32]byte
+	output_index     uint32
+	script_size      compact_size
+	script           []byte // Unlocking script
+	sequence         uint32
+}
+
+const (
+	OP_DUP         = 0x76
+	OP_EQUALVERIFY = 0x88
+	OP_HASH160     = 0xa9
+	OP_CHECKSIG    = 0xac
+)
+
 func DeserializeTransaction(raw_data []byte) (*Transaction, error) {
 	var t Transaction
 
@@ -143,7 +175,6 @@ func ValidateTransactionScript(tx_new Transaction, tx_prev Transaction, input_in
 	script = append(script, subscript...)
 
 	var stack Stack
-	stack_init(&stack)
 	for i := 0; i < len(script); i++ {
 		switch b := script[i]; b {
 		case OP_DUP:
